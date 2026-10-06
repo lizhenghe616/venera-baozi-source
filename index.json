@@ -1,0 +1,9 @@
+[
+  {
+    "name": "包子漫画（主站）",
+    "key": "baozi_www",
+    "version": "1.2.2",
+    "fileName": "baozi.js",
+    "description": "独立补充源：主站入口、网页验证、图片线路自动切换。需要 Venera Prime 2.4.2 或更新版本。"
+  }
+]

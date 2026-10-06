@@ -1,0 +1,7 @@
+log*
+*.log
+*.bak
+*.zip
+.env
+.env.*
+node_modules/

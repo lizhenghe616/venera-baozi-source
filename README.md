@@ -50,6 +50,10 @@ https://raw.githubusercontent.com/lizhenghe616/venera-baozi-source/main/baozi.js
 
 搜索、详情及首个章节入口固定使用 `https://www.baozimh.com`。漫画图片、封面及同章分页允许使用网站关联服务器；不保证所有网络请求只访问一个域名。
 
+## 更新记录
+
+- **1.2.3**：修复多页章节误跟随“第一页/上一页”链接导致循环的问题。按同章分段页码向后加载，并在多个链接中选择最近的后续页。
+
 ## 验证范围与已知限制
 
 - JavaScript 语法和离线回归检查通过，运行方式：`node --check baozi.js`、`node --test tests/source.test.cjs`。

@@ -122,3 +122,31 @@ test('password request bodies are masked and invalid login tokens are rejected',
   assert.equal(state.postExtra.maskDataInLog, true);
   assert.equal(state.cookies.length, 0);
 });
+
+
+test('log7 regression: last section links back to the first page', async () => {
+  const { b, state } = setup();
+  const slug = 'woduzishengji-duburedicestudio_yfelsj';
+  const first = host + '/user/page_direct?comic_id=' + slug + '&section_slot=0&chapter_slot=0';
+  const second = 'https://www.twmanga.com/comic/chapter/' + slug + '/0_0_2.html';
+  const back = 'https://www.twmanga.com/comic/chapter/' + slug + '/0_0.html';
+  state.fixtures[first] = { images: [image('https://s1.bzcdn.net/1.jpg')], next: [link(second)] };
+  state.fixtures[second] = { images: [image('https://s1.bzcdn.net/2.jpg')], next: [link(back, '第一页'), link(back, '下一頁'), link(second, '当前页')] };
+  const result = await b.comic.loadEp('demo', first);
+  assert.deepEqual(Array.from(result.images), ['https://s1.bzcdn.net/1.jpg', 'https://s1.bzcdn.net/2.jpg']);
+  assert.deepEqual(state.calls, [first, second]);
+  assert.equal(state.disposed, 2);
+});
+
+test('pagination skips backward links and picks the nearest forward section', async () => {
+  const { b, state } = setup();
+  const first = host + '/user/page_direct?comic_id=demo&section_slot=0&chapter_slot=0';
+  const prefix = 'https://www.twmanga.com/comic/chapter/demo/0_0';
+  const second = prefix + '_2.html', third = prefix + '_3.html', fourth = prefix + '_4.html';
+  state.fixtures[first] = { images: [image('/1.jpg')], next: [link(fourth), link(second)] };
+  state.fixtures[second] = { images: [image('/2.jpg')], next: [link(prefix + '.html', '上一页'), link(fourth), link(third)] };
+  state.fixtures[third] = { images: [image('/3.jpg')], next: [link(second, '上一页'), link(fourth)] };
+  state.fixtures[fourth] = { images: [image('/4.jpg')], next: [link(prefix + '.html', '第一页')] };
+  assert.equal((await b.comic.loadEp('demo', first)).images.length, 4);
+  assert.deepEqual(state.calls, [first, second, third, fourth]);
+});

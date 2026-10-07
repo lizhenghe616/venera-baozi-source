@@ -9,7 +9,7 @@ class Baozi extends ComicSource {
   // 唯一标识符
   key = "baozi_www";
 
-  version = "1.2.2";
+  version = "1.2.3";
 
   minAppVersion = "2.4.2";
 
@@ -603,18 +603,24 @@ class Baozi extends ComicSource {
       const visited = new Set();
       const images = [];
       const seenImages = new Set();
-      const partKey = (url) => {
-        const pathMatch = url.match(/\/comic\/chapter\/([^/?]+)\/(\d+_\d+)(?:_\d+)?\.html(?:[?#]|$)/);
-        if (pathMatch) return pathMatch[1] + "/" + pathMatch[2];
+      // 同章身份与分段页码分开比较：query 入口和 0_0.html 都是第一页。
+      const partInfo = (url) => {
+        const pathMatch = url.match(/\/comic\/chapter\/([^/?]+)\/(\d+)_(\d+)(?:_(\d+))?\.html(?:[?#]|$)/);
+        if (pathMatch) return {
+          key: pathMatch[1] + "/" + Number(pathMatch[2]) + "_" + Number(pathMatch[3]),
+          page: pathMatch[4] ? Number(pathMatch[4]) : 1,
+        };
         const comicMatch = url.match(/\/comic\/chapter\/([^/?]+?)(?:\.html)?\?/);
         const comicParam = url.match(/[?&]comic_id=([^&#]+)(?:&|$)/);
         const section = url.match(/[?&]section_slot=(\d+)(?:&|$)/);
         const chapter = url.match(/[?&]chapter_slot=(\d+)(?:&|$)/);
         const slug = comicMatch ? comicMatch[1] : comicParam ? comicParam[1] : null;
-        return slug && section && chapter
-          ? slug + "/" + section[1] + "_" + chapter[1] : null;
+        return slug && section && chapter ? {
+          key: slug + "/" + Number(section[1]) + "_" + Number(chapter[1]),
+          page: 1,
+        } : null;
       };
-      const originalPart = partKey(current);
+      const originalPart = partInfo(current);
       while (current) {
         if (visited.has(current) || visited.size >= 100) {
           throw "主站章节分页出现循环或超过安全上限，请在浏览器查看。";
@@ -624,6 +630,8 @@ class Baozi extends ComicSource {
         if (res.status !== 200) throw "Invalid status code: " + res.status;
         const doc = new HtmlDocument(res.body);
         let next = null;
+        let nextPage = Infinity;
+        const currentPart = partInfo(current);
         try {
           // 网页版常用 amp-img；兼容普通 img，但仅提取正文区域。
           const nodes = doc.querySelectorAll(".comic-contain amp-img, .comic-contain img");
@@ -645,8 +653,17 @@ class Baozi extends ComicSource {
               if (isPage) throw "主站返回了无效的下一页地址。";
               continue;
             }
-            const sameChapter = originalPart && partKey(candidate) === originalPart;
-            if (sameChapter) { next = candidate; break; }
+            const candidatePart = partInfo(candidate);
+            const sameChapter = originalPart && candidatePart && candidatePart.key === originalPart.key;
+            if (sameChapter) {
+              // 忽略第一页、上一页、当前页和已访问链接，只选最靠前的后续页。
+              if (currentPart && candidatePart.page > currentPart.page &&
+                  candidatePart.page < nextPage && !visited.has(candidate)) {
+                next = candidate;
+                nextPage = candidatePart.page;
+              }
+              continue;
+            }
             if (isPage) throw "主站分页链接无法确认属于当前章节，已停止加载。";
           }
         } finally {
